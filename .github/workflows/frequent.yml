@@ -1,10 +1,14 @@
-name: Xeveza Opportunity Pipeline
+name: Xeveza Frequent Pipeline
 
 on:
   workflow_dispatch:
 
   schedule:
     - cron: "0 */2 * * *"
+
+concurrency:
+  group: xeveza-opportunity-pipeline
+  cancel-in-progress: false
 
 jobs:
   pipeline:
@@ -24,14 +28,26 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run opportunity pipeline
+      - name: Collect Arbeitnow
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node ./scripts/collect-arbeitnow.mjs
+
+      - name: Collect Remote OK
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: node ./scripts/collect-remoteok.mjs
+
+      - name: DeepSeek enrichment
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: node ./scripts/run-pipeline.mjs
+        run: node ./scripts/enrich-deepseek.mjs
 
-      - name: Run quality check
+      - name: Quality check
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
