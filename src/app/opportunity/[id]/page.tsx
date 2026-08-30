@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -15,39 +16,97 @@ function isValidUuid(value: string) {
   );
 }
 
-export default async function OpportunityDetail({
-  params,
-}: PageProps) {
-  const { id } = await params;
-
-  // Jangan kirim ID tidak valid ke PostgreSQL UUID column.
+async function getOpportunity(id: string) {
   if (!isValidUuid(id)) {
-    notFound();
+    return null;
   }
 
-  const {
-    data: opportunity,
-    error,
-  } = await supabase
+  const { data, error } = await supabase
     .from("opportunities")
     .select("*")
     .eq("id", id)
     .eq("status", "active")
     .maybeSingle();
 
-  // Error database asli tetap masuk error boundary.
   if (error) {
-    console.error(
-      "Opportunity detail error:",
-      error
-    );
-
-    throw new Error(
-      "Failed to load opportunity"
-    );
+    console.error("Opportunity query error:", error);
+    throw new Error("Failed to load opportunity");
   }
 
-  // UUID valid tetapi row tidak ada / tidak aktif.
+  return data;
+}
+
+/* =========================
+   DYNAMIC PAGE METADATA
+========================= */
+
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
+  const { id } = await params;
+
+  const opportunity =
+    await getOpportunity(id);
+
+  if (!opportunity) {
+    return {
+      title: "Opportunity Not Found",
+      description:
+        "This opportunity is no longer available on Xeveza.",
+      robots: {
+        index: false,
+        follow: false,
+      },
+    };
+  }
+
+  const description =
+    opportunity.why_it_matters ||
+    `${opportunity.title} at ${
+      opportunity.company ||
+      "an organization"
+    }. Discover details and analysis on Xeveza.`;
+
+  const pageUrl =
+    `https://www.xeveza.com/opportunity/${opportunity.id}`;
+
+  return {
+    title: opportunity.title,
+
+    description,
+
+    alternates: {
+      canonical: pageUrl,
+    },
+
+    openGraph: {
+      title: `${opportunity.title} | Xeveza`,
+      description,
+      url: pageUrl,
+      siteName: "Xeveza",
+      type: "website",
+    },
+
+    twitter: {
+      card: "summary_large_image",
+      title: `${opportunity.title} | Xeveza`,
+      description,
+    },
+  };
+}
+
+/* =========================
+   OPPORTUNITY DETAIL PAGE
+========================= */
+
+export default async function OpportunityDetail({
+  params,
+}: PageProps) {
+  const { id } = await params;
+
+  const opportunity =
+    await getOpportunity(id);
+
   if (!opportunity) {
     notFound();
   }
@@ -56,7 +115,7 @@ export default async function OpportunityDetail({
     <main className="detail-page">
       <div className="detail-container">
         <Link
-          href="/#opportunities"
+          href="/opportunities"
           className="detail-back"
         >
           ← Back to opportunities
@@ -64,6 +123,8 @@ export default async function OpportunityDetail({
 
         <div className="detail-grid">
           <article className="detail-main">
+            {/* HEADER */}
+
             <div className="detail-header">
               <div>
                 <p className="detail-company">
@@ -111,6 +172,8 @@ export default async function OpportunityDetail({
               </div>
             </div>
 
+            {/* BADGES */}
+
             <div className="detail-badges">
               {opportunity.category && (
                 <span>
@@ -124,6 +187,12 @@ export default async function OpportunityDetail({
                 </span>
               )}
 
+              {opportunity.work_mode && (
+                <span>
+                  {opportunity.work_mode}
+                </span>
+              )}
+
               {opportunity.entry_barrier && (
                 <span>
                   Barrier:{" "}
@@ -133,7 +202,8 @@ export default async function OpportunityDetail({
                 </span>
               )}
 
-              {opportunity.ai_relevant && (
+              {opportunity.ai_relevant ===
+                true && (
                 <span>
                   AI Relevant
                 </span>
@@ -142,7 +212,7 @@ export default async function OpportunityDetail({
               {opportunity.indonesia_eligible ===
                 true && (
                 <span>
-                  Indonesia Eligible
+                  Indonesia Eligible ✓
                 </span>
               )}
 
@@ -162,6 +232,8 @@ export default async function OpportunityDetail({
               )}
             </div>
 
+            {/* WHY IT MATTERS */}
+
             <section className="detail-section detail-highlight">
               <p className="detail-section-label">
                 ✦ WHY IT MATTERS
@@ -173,22 +245,27 @@ export default async function OpportunityDetail({
               </p>
             </section>
 
-            {opportunity.tags?.length >
-              0 && (
-              <section className="detail-section">
-                <h2>Tags</h2>
+            {/* TAGS */}
 
-                <div className="detail-tags">
-                  {opportunity.tags.map(
-                    (tag: string) => (
-                      <span key={tag}>
-                        {tag}
-                      </span>
-                    )
-                  )}
-                </div>
-              </section>
-            )}
+            {opportunity.tags &&
+              opportunity.tags.length >
+                0 && (
+                <section className="detail-section">
+                  <h2>Tags</h2>
+
+                  <div className="detail-tags">
+                    {opportunity.tags.map(
+                      (tag: string) => (
+                        <span key={tag}>
+                          {tag}
+                        </span>
+                      )
+                    )}
+                  </div>
+                </section>
+              )}
+
+            {/* DESCRIPTION */}
 
             {opportunity.description && (
               <section className="detail-section">
@@ -204,6 +281,8 @@ export default async function OpportunityDetail({
               </section>
             )}
 
+            {/* REQUIREMENTS */}
+
             {opportunity.requirements && (
               <section className="detail-section">
                 <h2>
@@ -218,17 +297,22 @@ export default async function OpportunityDetail({
               </section>
             )}
 
+            {/* SOURCE */}
+
             <section className="detail-section">
-              <h2>Source</h2>
+              <h2>
+                Original source
+              </h2>
 
               <div className="source-box">
                 <div>
                   <span>
-                    Original source
+                    Opportunity source
                   </span>
 
                   <strong>
-                    {opportunity.source}
+                    {opportunity.source ||
+                      "Unknown"}
                   </strong>
                 </div>
 
@@ -246,6 +330,10 @@ export default async function OpportunityDetail({
             </section>
           </article>
 
+          {/* =========================
+              SIDEBAR
+          ========================= */}
+
           <aside className="detail-sidebar">
             <div className="apply-card">
               <p className="apply-eyebrow">
@@ -259,8 +347,8 @@ export default async function OpportunityDetail({
 
               <p>
                 Xeveza helps you
-                discover and evaluate
-                opportunities.
+                discover, filter, and
+                evaluate opportunities.
                 Applications are
                 completed on the
                 original website.
@@ -280,10 +368,29 @@ export default async function OpportunityDetail({
 
               <div className="apply-info">
                 <div>
+                  <span>Company</span>
+
+                  <strong>
+                    {opportunity.company ||
+                      "Not specified"}
+                  </strong>
+                </div>
+
+                <div>
                   <span>Source</span>
 
                   <strong>
-                    {opportunity.source}
+                    {opportunity.source ||
+                      "Unknown"}
+                  </strong>
+                </div>
+
+                <div>
+                  <span>Category</span>
+
+                  <strong>
+                    {opportunity.category ||
+                      "Opportunity"}
                   </strong>
                 </div>
 
@@ -302,8 +409,7 @@ export default async function OpportunityDetail({
                             month:
                               "short",
                             day: "numeric",
-                            year:
-                              "numeric",
+                            year: "numeric",
                           }
                         )
                       : "Unknown"}
@@ -325,8 +431,7 @@ export default async function OpportunityDetail({
                             month:
                               "short",
                             day: "numeric",
-                            year:
-                              "numeric",
+                            year: "numeric",
                           }
                         )
                       : "Unknown"}
