@@ -2,6 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 import fs from "fs";
 import path from "path";
 
+/* =========================
+   ENV
+========================= */
+
 const envPath = path.resolve(".env.local");
 
 if (fs.existsSync(envPath)) {
@@ -25,20 +29,31 @@ if (fs.existsSync(envPath)) {
   }
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY;
-const deepseekKey = process.env.DEEPSEEK_API_KEY;
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+const supabaseSecretKey =
+  process.env.SUPABASE_SECRET_KEY;
+
+const deepseekKey =
+  process.env.DEEPSEEK_API_KEY;
 
 if (!supabaseUrl) {
-  throw new Error("NEXT_PUBLIC_SUPABASE_URL tidak ditemukan");
+  throw new Error(
+    "NEXT_PUBLIC_SUPABASE_URL tidak ditemukan"
+  );
 }
 
 if (!supabaseSecretKey) {
-  throw new Error("SUPABASE_SECRET_KEY tidak ditemukan");
+  throw new Error(
+    "SUPABASE_SECRET_KEY tidak ditemukan"
+  );
 }
 
 if (!deepseekKey) {
-  throw new Error("DEEPSEEK_API_KEY tidak ditemukan");
+  throw new Error(
+    "DEEPSEEK_API_KEY tidak ditemukan"
+  );
 }
 
 const supabase = createClient(
@@ -50,6 +65,10 @@ const supabase = createClient(
     },
   }
 );
+
+/* =========================
+   NORMALIZERS
+========================= */
 
 function cleanJsonResponse(text = "") {
   return text
@@ -69,7 +88,9 @@ function normalizeCategory(value) {
     "Jobs",
   ];
 
-  return allowed.includes(value) ? value : "Jobs";
+  return allowed.includes(value)
+    ? value
+    : "Jobs";
 }
 
 function normalizeSeniority(value) {
@@ -86,7 +107,9 @@ function normalizeSeniority(value) {
     "Unknown",
   ];
 
-  return allowed.includes(value) ? value : "Unknown";
+  return allowed.includes(value)
+    ? value
+    : "Unknown";
 }
 
 function normalizeWorkMode(value) {
@@ -97,21 +120,47 @@ function normalizeWorkMode(value) {
     "Unknown",
   ];
 
-  return allowed.includes(value) ? value : "Unknown";
+  return allowed.includes(value)
+    ? value
+    : "Unknown";
 }
 
 function normalizeEntryBarrier(value) {
-  const allowed = ["Low", "Medium", "High", "Unknown"];
+  const allowed = [
+    "Low",
+    "Medium",
+    "High",
+    "Unknown",
+  ];
 
-  return allowed.includes(value) ? value : "Unknown";
+  return allowed.includes(value)
+    ? value
+    : "Unknown";
+}
+
+function normalizeScore(value) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return null;
+  }
+
+  return Math.max(
+    0,
+    Math.min(
+      100,
+      Math.round(number)
+    )
+  );
 }
 
 function resolveCategory(analysis) {
-  const original = normalizeCategory(
-    analysis.category
-  );
+  const original =
+    normalizeCategory(
+      analysis.category
+    );
 
-  // Kategori khusus punya prioritas tertinggi.
+  // Kategori khusus punya prioritas.
   if (
     [
       "Internship",
@@ -123,38 +172,39 @@ function resolveCategory(analysis) {
     return original;
   }
 
-  // Kalau AI memang bagian penting pekerjaan,
-  // selalu kelompokkan sebagai AI Jobs.
-  if (analysis.ai_relevant === true) {
+  if (
+    analysis.ai_relevant === true
+  ) {
     return "AI Jobs";
   }
 
-  // Non-AI tetapi remote.
-  if (analysis.work_mode === "Remote") {
+  if (
+    analysis.work_mode ===
+    "Remote"
+  ) {
     return "Remote Jobs";
   }
 
   return "Jobs";
 }
 
-function normalizeScore(value) {
-  const number = Number(value);
-
-  if (!Number.isFinite(number)) return null;
-
-  return Math.max(
-    0,
-    Math.min(100, Math.round(number))
-  );
-}
+/* =========================
+   DEEPSEEK
+========================= */
 
 async function analyzeJob(job) {
   const prompt = `
-You are the AI analysis engine for Xeveza Opportunity Radar.
+You are the analysis engine for Xeveza Opportunity Radar.
 
-Xeveza helps people discover useful jobs, freelance work, internships, grants, competitions, and other digital opportunities.
+Xeveza discovers global jobs, freelance opportunities, internships, grants, competitions and digital opportunities.
+
+IMPORTANT:
+Do NOT translate or rewrite the original job title, company name, source description, location, or requirements.
 
 Analyze the opportunity below.
+
+SOURCE:
+${job.source ?? "Unknown"}
 
 TITLE:
 ${job.title}
@@ -168,11 +218,17 @@ ${job.location ?? "Unknown"}
 REMOTE FLAG:
 ${job.remote ? "Yes" : "No"}
 
+CURRENT CATEGORY:
+${job.category ?? "Unknown"}
+
 CURRENT TAGS:
 ${(job.tags ?? []).join(", ") || "None"}
 
+COMPENSATION:
+${job.compensation ?? "Not disclosed"}
+
 DESCRIPTION:
-${job.description?.slice(0, 8000) ?? "No description"}
+${job.description?.slice(0, 9000) ?? "No description"}
 
 Return ONLY valid JSON.
 
@@ -187,155 +243,151 @@ Use EXACTLY this schema:
   "work_mode": "Remote | Hybrid | On-site | Unknown",
   "ai_relevant": false,
   "entry_barrier": "Low | Medium | High | Unknown",
-  "why_it_matters": ""
+  "why_it_matters_en": "",
+  "why_it_matters_id": "",
+  "why_it_matters_es": "",
+  "why_it_matters_pt": "",
+  "why_it_matters_de": ""
 }
 
 CATEGORY RULES:
 
-1. If the opportunity is clearly an internship, use:
-   "Internship"
+- Internship:
+  internships, traineeships, working-student opportunities when clearly student-oriented.
 
-2. If it is freelance, contract-based independent work, gig work, project work, or creator work, use:
-   "Freelance"
+- Freelance:
+  freelance, independent contractor, gig, project-based independent work.
 
-3. If the role substantially involves AI, machine learning, LLMs, generative AI, computer vision, NLP, AI products, AI evaluation, AI training, or AI research, use:
-   "AI Jobs"
+- AI Jobs:
+  AI, ML, LLM, generative AI, computer vision, NLP, AI evaluation, AI training, AI research or an AI product is a meaningful part of the role.
 
-4. If it is primarily a remote role but not strongly AI-related, use:
-   "Remote Jobs"
+- Remote Jobs:
+  primarily remote and not better classified above.
 
-5. Use "Competition" only for competitions, challenges, hackathons, contests, or similar programs.
+- Competition:
+  competitions, contests, hackathons, challenges.
 
-6. Use "Grants" only for grants, funding programs, fellowships focused primarily on funding, or similar funding opportunities.
+- Grants:
+  grants and funding-focused programs.
 
-7. Otherwise use:
-   "Jobs"
+- Jobs:
+  everything else.
 
 AI RELEVANCE:
 
-Set ai_relevant=true only when AI or machine learning is a meaningful part of the role.
+Set ai_relevant=true ONLY if AI or machine learning is genuinely relevant to the person's work.
 
-A company merely using technology does not automatically make the job AI-related.
+Do NOT mark a role AI-relevant merely because:
+- the company uses AI,
+- AI is mentioned in corporate marketing,
+- the role interacts with an AI company but does not perform meaningful AI-related work.
 
 INDONESIA ELIGIBILITY:
 
-Set indonesia_eligible=true if the description clearly allows:
-- worldwide applicants,
-- global remote applicants,
-- Asia/APAC applicants where Indonesia is not excluded,
-- Indonesia specifically.
+true:
+- Indonesia explicitly allowed
+- worldwide/global applicants allowed
+- unrestricted global remote
+- APAC/Asia where Indonesia is not excluded
 
-Set false if the description clearly restricts applicants to another country or region excluding Indonesia.
+false:
+- clearly restricted to another country/region that excludes Indonesia
+- legal work authorization requires another country
 
-Set null if eligibility cannot be determined confidently.
+null:
+- cannot determine confidently
 
 WORK MODE:
 
-Use:
-- Remote
-- Hybrid
-- On-site
-- Unknown
+Return only:
+Remote
+Hybrid
+On-site
+Unknown
 
-Do not assume Remote just because the job appeared on a job board.
+Do not assume Remote solely because the opportunity came from a remote job board.
 
 SENIORITY:
 
 Infer from title and requirements.
 
-Examples:
-Intern → Intern
-Entry Level → Entry
-Junior → Junior
-Senior → Senior
-Lead → Lead
-Manager → Manager
-Director → Director
-VP / Chief / C-level → Executive
-
-If unclear, use Unknown.
-
 ENTRY BARRIER:
 
 Low:
-- internship
-- entry-level
-- junior
-- no experience required
-- general content evaluation
-- annotation
-- basic freelance work
+entry, junior, intern, minimal experience, simple evaluation/annotation/basic freelance work.
 
 Medium:
-- typical professional role
-- several years experience
-- specialized skills
+typical skilled professional role.
 
 High:
-- senior
-- lead
-- manager
-- director
-- executive
-- highly specialized roles
+senior, lead, manager, director, executive, highly specialized role.
 
 COMPENSATION:
 
-Only extract compensation if explicitly present in the description.
-
-Do not estimate.
-Do not invent.
-If unavailable, use null.
+Only return compensation when explicitly stated in the source.
+Never invent salary.
+If not confidently available, return null.
 
 SCORING:
 
-Score from 0 to 100 based on usefulness for a broad Xeveza audience.
+Score usefulness for a broad Xeveza audience from 0 to 100.
 
-Suggested weighting:
+Consider:
+- accessibility / remote: 0-20
+- Indonesia eligibility: 0-15
+- entry barrier: 0-15
+- compensation transparency: 0-10
+- digital / AI relevance: 0-15
+- flexibility: 0-10
+- career value: 0-10
+- clarity / freshness: 0-5
 
-Remote / accessible:
-0-20
+Do not automatically give AI jobs high scores.
+A highly restricted or senior job can have a low score.
 
-Indonesia eligibility:
-0-15
+MULTILINGUAL WHY IT MATTERS:
 
-Entry barrier:
-0-15
+All five fields must express the SAME factual meaning.
 
-Compensation transparency:
-0-10
+why_it_matters_en:
+English.
 
-AI / digital relevance:
-0-15
+why_it_matters_id:
+Bahasa Indonesia.
 
-Flexibility / freelance potential:
-0-10
+why_it_matters_es:
+Natural Spanish.
 
-Career value:
-0-10
+why_it_matters_pt:
+Natural Brazilian/neutral Portuguese.
 
-Freshness / clarity:
-0-5
+why_it_matters_de:
+Natural German.
 
-Important:
-Do not automatically give AI jobs a high score.
-A senior AI executive role may be AI-relevant but have a high entry barrier.
+Each version:
+- maximum 2 short sentences
+- practical and concise
+- mention strengths and limitations when relevant
+- do not invent facts
+- do not translate the job title
+- do not translate the company name
 
-WHY IT MATTERS:
+Example meaning:
 
-Write in Indonesian.
+EN:
+"Fully remote and open globally, making it accessible from Indonesia. However, the role requires senior-level experience."
 
-Maximum 2 short sentences.
+ID:
+"Sepenuhnya remote dan terbuka secara global sehingga dapat diakses dari Indonesia. Namun, posisi ini membutuhkan pengalaman tingkat senior."
 
-Mention practical strengths or limitations.
+ES:
+"Es completamente remoto y está abierto a candidatos de todo el mundo, por lo que es accesible desde Indonesia. Sin embargo, requiere experiencia de nivel senior."
 
-Examples:
-"Fully remote dan terbuka secara global, sehingga relatif mudah diakses dari Indonesia. Namun posisi ini membutuhkan pengalaman senior."
+PT:
+"É totalmente remoto e aberto a candidatos do mundo todo, sendo acessível a partir da Indonésia. No entanto, exige experiência de nível sênior."
 
-"Relevan untuk pemula karena tidak mensyaratkan pengalaman teknis berat dan menawarkan kerja fleksibel."
-
-Do not exaggerate.
-Do not invent facts.
+DE:
+"Die Stelle ist vollständig remote und weltweit offen, sodass sie auch aus Indonesien zugänglich ist. Allerdings wird Erfahrung auf Senior-Niveau vorausgesetzt."
 `;
 
   const response = await fetch(
@@ -344,8 +396,11 @@ Do not invent facts.
       method: "POST",
 
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${deepseekKey}`,
+        "Content-Type":
+          "application/json",
+
+        Authorization:
+          `Bearer ${deepseekKey}`,
       },
 
       body: JSON.stringify({
@@ -354,9 +409,11 @@ Do not invent facts.
         messages: [
           {
             role: "system",
+
             content:
-              "Return strict JSON only. Never add markdown or commentary.",
+              "Analyze opportunities and return strict JSON only. Never return markdown.",
           },
+
           {
             role: "user",
             content: prompt,
@@ -364,6 +421,7 @@ Do not invent facts.
         ],
 
         temperature: 0.1,
+
         response_format: {
           type: "json_object",
         },
@@ -372,17 +430,20 @@ Do not invent facts.
   );
 
   if (!response.ok) {
-    const text = await response.text();
+    const text =
+      await response.text();
 
     throw new Error(
       `DeepSeek ${response.status}: ${text}`
     );
   }
 
-  const payload = await response.json();
+  const payload =
+    await response.json();
 
   const content =
-    payload.choices?.[0]?.message?.content;
+    payload.choices?.[0]
+      ?.message?.content;
 
   if (!content) {
     throw new Error(
@@ -395,20 +456,45 @@ Do not invent facts.
   );
 }
 
+/* =========================
+   ENRICH
+========================= */
+
 async function run() {
+  console.log("");
+  console.log("==========================");
+  console.log("XEVEZA AI ENRICHMENT");
+  console.log("==========================");
+
   console.log(
-    "Finding unenriched opportunities..."
+    "Finding opportunities needing enrichment..."
   );
 
-  const { data: jobs, error } = await supabase
+  const {
+    data: jobs,
+    error,
+  } = await supabase
     .from("opportunities")
     .select("*")
-    .eq("source", "Arbeitnow")
-    .eq("ai_enriched", false)
-    .order("discovered_at", {
-      ascending: false,
-    })
-    .limit(25);
+    .eq("status", "active")
+    .or(
+      [
+        "ai_enriched.eq.false",
+        "ai_enriched.is.null",
+        "why_it_matters_en.is.null",
+        "why_it_matters_id.is.null",
+        "why_it_matters_es.is.null",
+        "why_it_matters_pt.is.null",
+        "why_it_matters_de.is.null",
+      ].join(",")
+    )
+    .order(
+      "discovered_at",
+      {
+        ascending: false,
+      }
+    )
+    .limit(50);
 
   if (error) {
     throw error;
@@ -416,7 +502,7 @@ async function run() {
 
   if (!jobs?.length) {
     console.log(
-      "No unenriched opportunities found."
+      "No opportunities need enrichment."
     );
 
     return;
@@ -435,18 +521,28 @@ async function run() {
       `Analyzing: ${job.title}`
     );
 
+    console.log(
+      `Source: ${job.source}`
+    );
+
     try {
       const analysis =
         await analyzeJob(job);
 
       const score =
-        normalizeScore(analysis.score);
+        normalizeScore(
+          analysis.score
+        );
 
       const updateData = {
-        category: resolveCategory(analysis),
+        category:
+          resolveCategory(
+            analysis
+          ),
 
         xeveza_score:
-          score ?? job.xeveza_score,
+          score ??
+          job.xeveza_score,
 
         indonesia_eligible:
           typeof analysis.indonesia_eligible ===
@@ -454,25 +550,53 @@ async function run() {
             ? analysis.indonesia_eligible
             : null,
 
-        seniority: normalizeSeniority(
-          analysis.seniority
-        ),
+        seniority:
+          normalizeSeniority(
+            analysis.seniority
+          ),
 
-        work_mode: normalizeWorkMode(
-          analysis.work_mode
-        ),
+        work_mode:
+          normalizeWorkMode(
+            analysis.work_mode
+          ),
 
         ai_relevant:
-          Boolean(analysis.ai_relevant),
+          analysis.ai_relevant ===
+          true,
 
         entry_barrier:
           normalizeEntryBarrier(
             analysis.entry_barrier
           ),
 
+        why_it_matters_en:
+          analysis.why_it_matters_en ||
+          null,
+
+        why_it_matters_id:
+          analysis.why_it_matters_id ||
+          job.why_it_matters_id ||
+          job.why_it_matters ||
+          null,
+
+        why_it_matters_es:
+          analysis.why_it_matters_es ||
+          null,
+
+        why_it_matters_pt:
+          analysis.why_it_matters_pt ||
+          null,
+
+        why_it_matters_de:
+          analysis.why_it_matters_de ||
+          null,
+
+        // Kolom lama tetap dijaga
+        // sebagai fallback Bahasa Indonesia.
         why_it_matters:
-          analysis.why_it_matters ??
-          job.why_it_matters,
+          analysis.why_it_matters_id ||
+          job.why_it_matters ||
+          null,
 
         ai_enriched: true,
 
@@ -489,11 +613,12 @@ async function run() {
           analysis.compensation.trim();
       }
 
-      const { error: updateError } =
-        await supabase
-          .from("opportunities")
-          .update(updateData)
-          .eq("id", job.id);
+      const {
+        error: updateError,
+      } = await supabase
+        .from("opportunities")
+        .update(updateData)
+        .eq("id", job.id);
 
       if (updateError) {
         throw updateError;
@@ -527,7 +652,7 @@ async function run() {
       );
 
       console.log(
-        `Entry barrier: ${updateData.entry_barrier}`
+        "Languages: EN ✓ ID ✓ ES ✓ PT ✓ DE ✓"
       );
 
       console.log(
@@ -540,16 +665,17 @@ async function run() {
         `FAILED: ${job.title}`
       );
 
-      console.error(error.message);
+      console.error(
+        error?.message ||
+        error
+      );
 
       failed++;
     }
   }
 
   console.log("");
-  console.log(
-    "=========================="
-  );
+  console.log("==========================");
   console.log(
     `Selected : ${jobs.length}`
   );
@@ -559,12 +685,15 @@ async function run() {
   console.log(
     `Failed   : ${failed}`
   );
-  console.log(
-    "=========================="
-  );
+  console.log("==========================");
+
+  if (failed > 0) {
+    process.exitCode = 1;
+  }
 }
 
 run().catch((error) => {
+  console.error("");
   console.error(
     "DeepSeek enrichment failed:"
   );

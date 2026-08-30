@@ -8,6 +8,11 @@ import {
   useState,
 } from "react";
 
+import {
+  Language,
+  useLanguage,
+} from "@/components/LanguageProvider";
+
 type Opportunity = {
   id: string;
   title: string;
@@ -20,8 +25,14 @@ type Opportunity = {
   compensation: string | null;
   tags: string[] | null;
   xeveza_score: number | null;
-  why_it_matters: string | null;
   published_at: string | null;
+
+  why_it_matters?: string | null;
+  why_it_matters_en?: string | null;
+  why_it_matters_id?: string | null;
+  why_it_matters_es?: string | null;
+  why_it_matters_pt?: string | null;
+  why_it_matters_de?: string | null;
 
   indonesia_eligible?: boolean | null;
   seniority?: string | null;
@@ -31,32 +42,86 @@ type Opportunity = {
 };
 
 const categories = [
-  "All",
-  "Remote Jobs",
-  "Freelance",
-  "AI Jobs",
-  "Internship",
-  "Competition",
-  "Grants",
+  {
+    value: "All",
+    key: "all",
+  },
+  {
+    value: "Remote Jobs",
+    key: "remoteJobs",
+  },
+  {
+    value: "Freelance",
+    key: "freelance",
+  },
+  {
+    value: "AI Jobs",
+    key: "aiJobs",
+  },
+  {
+    value: "Internship",
+    key: "internship",
+  },
+  {
+    value: "Competition",
+    key: "competition",
+  },
+  {
+    value: "Grants",
+    key: "grants",
+  },
 ];
+
+function getWhyItMatters(
+  item: Opportunity,
+  language: Language
+) {
+  const values = {
+    en: item.why_it_matters_en,
+    id:
+      item.why_it_matters_id ||
+      item.why_it_matters,
+    es: item.why_it_matters_es,
+    pt: item.why_it_matters_pt,
+    de: item.why_it_matters_de,
+  };
+
+  return (
+    values[language] ||
+    item.why_it_matters_en ||
+    item.why_it_matters_id ||
+    item.why_it_matters ||
+    ""
+  );
+}
 
 export default function OpportunityBrowser({
   opportunities,
 }: {
   opportunities: Opportunity[];
 }) {
-  const [activeCategory, setActiveCategory] =
-    useState("All");
+  const {
+    language,
+    t,
+  } = useLanguage();
 
-  const [search, setSearch] = useState("");
+  const [
+    activeCategory,
+    setActiveCategory,
+  ] = useState("All");
+
+  const [search, setSearch] =
+    useState("");
 
   const [sort, setSort] =
-    useState<"newest" | "score">(
-      "newest"
-    );
+    useState<
+      "newest" | "score"
+    >("newest");
 
-  const [remoteOnly, setRemoteOnly] =
-    useState(false);
+  const [
+    remoteOnly,
+    setRemoteOnly,
+  ] = useState(false);
 
   const [
     indonesiaOnly,
@@ -64,104 +129,145 @@ export default function OpportunityBrowser({
   ] = useState(false);
 
   const carouselRef =
-    useRef<HTMLDivElement | null>(null);
+    useRef<HTMLDivElement | null>(
+      null
+    );
 
-  const isPaused = useRef(false);
-  const isDragging = useRef(false);
+  const isPaused =
+    useRef(false);
 
-  const startX = useRef(0);
-  const startScrollLeft = useRef(0);
+  const isDragging =
+    useRef(false);
+
+  const startX =
+    useRef(0);
+
+  const startScrollLeft =
+    useRef(0);
 
   const animationFrame =
-    useRef<number | null>(null);
+    useRef<number | null>(
+      null
+    );
 
-  const filteredItems = useMemo(() => {
-    let result = [...opportunities];
+  const filteredItems =
+    useMemo(() => {
+      let result = [
+        ...opportunities,
+      ];
 
-    if (activeCategory !== "All") {
-      result = result.filter(
-        (item) =>
-          item.category === activeCategory
-      );
-    }
+      if (
+        activeCategory !==
+        "All"
+      ) {
+        result =
+          result.filter(
+            (item) =>
+              item.category ===
+              activeCategory
+          );
+      }
 
-    if (remoteOnly) {
-      result = result.filter(
-        (item) =>
-          item.work_mode === "Remote" ||
-          item.remote === true
-      );
-    }
+      if (remoteOnly) {
+        result =
+          result.filter(
+            (item) =>
+              item.work_mode ===
+                "Remote" ||
+              item.remote === true
+          );
+      }
 
-    if (indonesiaOnly) {
-      result = result.filter(
-        (item) =>
-          item.indonesia_eligible === true
-      );
-    }
+      if (indonesiaOnly) {
+        result =
+          result.filter(
+            (item) =>
+              item.indonesia_eligible ===
+              true
+          );
+      }
 
-    const keyword =
-      search.trim().toLowerCase();
-
-    if (keyword) {
-      result = result.filter((item) => {
-        const haystack = [
-          item.title,
-          item.company,
-          item.location,
-          item.category,
-          item.compensation,
-          item.seniority,
-          item.work_mode,
-          item.entry_barrier,
-          ...(item.tags ?? []),
-        ]
-          .filter(Boolean)
-          .join(" ")
+      const keyword =
+        search
+          .trim()
           .toLowerCase();
 
-        return haystack.includes(
-          keyword
+      if (keyword) {
+        result =
+          result.filter(
+            (item) => {
+              const haystack = [
+                item.title,
+                item.company,
+                item.location,
+                item.category,
+                item.compensation,
+                item.seniority,
+                item.work_mode,
+                item.entry_barrier,
+                ...(item.tags ??
+                  []),
+              ]
+                .filter(
+                  Boolean
+                )
+                .join(" ")
+                .toLowerCase();
+
+              return haystack.includes(
+                keyword
+              );
+            }
+          );
+      }
+
+      if (sort === "score") {
+        result.sort(
+          (a, b) =>
+            (b.xeveza_score ??
+              0) -
+            (a.xeveza_score ??
+              0)
         );
-      });
-    }
-
-    if (sort === "score") {
-      result.sort(
-        (a, b) =>
-          (b.xeveza_score ?? 0) -
-          (a.xeveza_score ?? 0)
-      );
-    } else {
-      result.sort((a, b) => {
-        const aDate = a.published_at
-          ? new Date(
+      } else {
+        result.sort(
+          (a, b) => {
+            const aDate =
               a.published_at
-            ).getTime()
-          : 0;
+                ? new Date(
+                    a.published_at
+                  ).getTime()
+                : 0;
 
-        const bDate = b.published_at
-          ? new Date(
+            const bDate =
               b.published_at
-            ).getTime()
-          : 0;
+                ? new Date(
+                    b.published_at
+                  ).getTime()
+                : 0;
 
-        return bDate - aDate;
-      });
-    }
+            return (
+              bDate - aDate
+            );
+          }
+        );
+      }
 
-    return result;
-  }, [
-    opportunities,
-    activeCategory,
-    search,
-    sort,
-    remoteOnly,
-    indonesiaOnly,
-  ]);
+      return result;
+    }, [
+      opportunities,
+      activeCategory,
+      search,
+      sort,
+      remoteOnly,
+      indonesiaOnly,
+    ]);
 
   const visibleItems =
-    filteredItems.slice(0, 20);
+    filteredItems.slice(
+      0,
+      20
+    );
 
   const carouselItems = [
     ...visibleItems,
@@ -176,23 +282,18 @@ export default function OpportunityBrowser({
     setSort("newest");
   };
 
-  // =================================
-  // AUTO SCROLL
-  // =================================
-
   useEffect(() => {
-    const el = carouselRef.current;
+    const el =
+      carouselRef.current;
 
     if (!el) return;
 
-    // reset posisi saat filter berubah
     el.scrollLeft = 0;
 
     let lastTime =
       performance.now();
 
-    const speed = 22;
-    // pixels per second
+    const speed = 18;
 
     const animate = (
       currentTime: number
@@ -200,22 +301,28 @@ export default function OpportunityBrowser({
       const carousel =
         carouselRef.current;
 
-      if (!carousel) return;
+      if (!carousel) {
+        return;
+      }
 
       const delta =
-        currentTime - lastTime;
+        currentTime -
+        lastTime;
 
-      lastTime = currentTime;
+      lastTime =
+        currentTime;
 
       if (
         !isPaused.current &&
         !isDragging.current
       ) {
         carousel.scrollLeft +=
-          (speed * delta) / 1000;
+          (speed * delta) /
+          1000;
 
         const halfWidth =
-          carousel.scrollWidth / 2;
+          carousel.scrollWidth /
+          2;
 
         if (
           carousel.scrollLeft >=
@@ -255,34 +362,47 @@ export default function OpportunityBrowser({
     indonesiaOnly,
   ]);
 
-  // =================================
-  // MANUAL DRAG
-  // =================================
-
   function handlePointerDown(
-    e: React.PointerEvent<HTMLDivElement>
+  e: React.PointerEvent<HTMLDivElement>
+) {
+  const target =
+    e.target as HTMLElement;
+
+  // Jangan aktifkan drag kalau user
+  // mengklik link, button, input atau select.
+  if (
+    target.closest(
+      "a, button, input, select"
+    )
   ) {
-    const el =
-      carouselRef.current;
-
-    if (!el) return;
-
-    isDragging.current = true;
-    isPaused.current = true;
-
-    startX.current = e.clientX;
-
-    startScrollLeft.current =
-      el.scrollLeft;
-
-    el.setPointerCapture(
-      e.pointerId
-    );
-
-    el.classList.add(
-      "is-dragging"
-    );
+    return;
   }
+
+  const el =
+    carouselRef.current;
+
+  if (!el) return;
+
+  isDragging.current =
+    true;
+
+  isPaused.current =
+    true;
+
+  startX.current =
+    e.clientX;
+
+  startScrollLeft.current =
+    el.scrollLeft;
+
+  el.setPointerCapture(
+    e.pointerId
+  );
+
+  el.classList.add(
+    "is-dragging"
+  );
+}
 
   function handlePointerMove(
     e: React.PointerEvent<HTMLDivElement>
@@ -315,7 +435,8 @@ export default function OpportunityBrowser({
 
     if (!el) return;
 
-    isDragging.current = false;
+    isDragging.current =
+      false;
 
     if (
       e &&
@@ -333,25 +454,19 @@ export default function OpportunityBrowser({
     );
   }
 
-  function handleMouseEnter() {
-    isPaused.current = true;
-  }
-
-  function handleMouseLeave() {
-    isPaused.current = false;
-  }
-
   return (
     <>
       <div className="container">
         <div className="section-heading">
           <div>
             <p className="section-label">
-              DISCOVER
+              {t("discover")}
             </p>
 
             <h2>
-              Latest opportunities
+              {t(
+                "latestOpportunities"
+              )}
             </h2>
           </div>
 
@@ -360,18 +475,23 @@ export default function OpportunityBrowser({
             value={sort}
             onChange={(e) =>
               setSort(
-                e.target.value as
+                e.target
+                  .value as
                   | "newest"
                   | "score"
               )
             }
           >
             <option value="newest">
-              Newest first
+              {t(
+                "newestFirst"
+              )}
             </option>
 
             <option value="score">
-              Highest score
+              {t(
+                "highestScore"
+              )}
             </option>
           </select>
         </div>
@@ -387,7 +507,9 @@ export default function OpportunityBrowser({
                 e.target.value
               )
             }
-            placeholder="Search title, company, location, skill..."
+            placeholder={t(
+              "searchPlaceholder"
+            )}
           />
 
           {search && (
@@ -398,7 +520,7 @@ export default function OpportunityBrowser({
               }
               className="clear-search"
             >
-              Clear
+              ×
             </button>
           )}
         </div>
@@ -407,21 +529,25 @@ export default function OpportunityBrowser({
           {categories.map(
             (category) => (
               <button
-                key={category}
+                key={
+                  category.value
+                }
                 type="button"
                 onClick={() =>
                   setActiveCategory(
-                    category
+                    category.value
                   )
                 }
                 className={
                   activeCategory ===
-                  category
+                  category.value
                     ? "category active"
                     : "category"
                 }
               >
-                {category}
+                {t(
+                  category.key
+                )}
               </button>
             )
           )}
@@ -431,15 +557,17 @@ export default function OpportunityBrowser({
           <label>
             <input
               type="checkbox"
-              checked={remoteOnly}
+              checked={
+                remoteOnly
+              }
               onChange={(e) =>
                 setRemoteOnly(
-                  e.target.checked
+                  e.target
+                    .checked
                 )
               }
             />
-
-            Remote only
+            {t("remoteOnly")}
           </label>
 
           <label>
@@ -450,19 +578,25 @@ export default function OpportunityBrowser({
               }
               onChange={(e) =>
                 setIndonesiaOnly(
-                  e.target.checked
+                  e.target
+                    .checked
                 )
               }
             />
-
-            Indonesia eligible
+            {t(
+              "indonesiaEligible"
+            )}
           </label>
         </div>
 
         <div className="results-row">
           <span>
-            {filteredItems.length}{" "}
-            opportunities
+            {
+              filteredItems.length
+            }{" "}
+            {t(
+              "opportunitiesFound"
+            )}
           </span>
 
           <button
@@ -472,12 +606,15 @@ export default function OpportunityBrowser({
               resetFilters
             }
           >
-            Reset filters
+            {t(
+              "resetFilters"
+            )}
           </button>
         </div>
       </div>
 
-      {filteredItems.length > 0 ? (
+      {filteredItems.length >
+      0 ? (
         <>
           <div
             ref={carouselRef}
@@ -494,16 +631,21 @@ export default function OpportunityBrowser({
             onPointerCancel={
               stopDragging
             }
-            onMouseEnter={
-              handleMouseEnter
-            }
-            onMouseLeave={
-              handleMouseLeave
-            }
+            onMouseEnter={() => {
+              isPaused.current =
+                true;
+            }}
+            onMouseLeave={() => {
+              isPaused.current =
+                false;
+            }}
           >
             <div className="carousel-track manual-track">
               {carouselItems.map(
-                (item, index) => (
+                (
+                  item,
+                  index
+                ) => (
                   <article
                     className="opportunity-card"
                     key={`${item.id}-${index}`}
@@ -514,13 +656,16 @@ export default function OpportunityBrowser({
                           item.company ||
                           "X"
                         )
-                          .charAt(0)
+                          .charAt(
+                            0
+                          )
                           .toUpperCase()}
                       </div>
 
                       <div className="score">
                         <span>
-                          XEVEZA SCORE
+                          XEVEZA
+                          SCORE
                         </span>
 
                         <strong>
@@ -537,7 +682,9 @@ export default function OpportunityBrowser({
                     <div className="card-content">
                       <p className="company">
                         {item.company ||
-                          "Company not specified"}
+                          t(
+                            "notSpecified"
+                          )}
                       </p>
 
                       <h3>
@@ -548,20 +695,26 @@ export default function OpportunityBrowser({
                         <span>
                           🌎{" "}
                           {item.location ||
-                            "Not specified"}
+                            t(
+                              "notSpecified"
+                            )}
                         </span>
 
                         <span>
                           ◷{" "}
                           {item.work_mode ||
                             item.category ||
-                            "Opportunity"}
+                            t(
+                              "notSpecified"
+                            )}
                         </span>
 
                         <span>
                           💰{" "}
                           {item.compensation ||
-                            "Not disclosed"}
+                            t(
+                              "notDisclosed"
+                            )}
                         </span>
                       </div>
 
@@ -576,7 +729,10 @@ export default function OpportunityBrowser({
 
                         {item.entry_barrier && (
                           <span>
-                            Barrier:{" "}
+                            {t(
+                              "barrier"
+                            )}
+                            :{" "}
                             {
                               item.entry_barrier
                             }
@@ -586,20 +742,30 @@ export default function OpportunityBrowser({
                         {item.indonesia_eligible ===
                           true && (
                           <span>
-                            Indonesia ✓
+                            {t(
+                              "indonesiaAllowed"
+                            )}
                           </span>
                         )}
                       </div>
 
                       <div className="tags">
-                        {(item.tags ?? [])
-                          .slice(0, 4)
+                        {(item.tags ??
+                          [])
+                          .slice(
+                            0,
+                            4
+                          )
                           .map(
-                            (tag) => (
+                            (
+                              tag
+                            ) => (
                               <span
                                 key={`${item.id}-${tag}`}
                               >
-                                {tag}
+                                {
+                                  tag
+                                }
                               </span>
                             )
                           )}
@@ -607,13 +773,20 @@ export default function OpportunityBrowser({
 
                       <div className="why">
                         <span>
-                          ✦ Why it
-                          matters
+                          ✦{" "}
+                          {t(
+                            "whyItMatters"
+                          )}
                         </span>
 
                         <p>
-                          {item.why_it_matters ||
-                            "Worth checking based on Xeveza analysis."}
+                          {getWhyItMatters(
+                            item,
+                            language
+                          ) ||
+                            t(
+                              "notSpecified"
+                            )}
                         </p>
                       </div>
                     </div>
@@ -624,7 +797,19 @@ export default function OpportunityBrowser({
                           ? new Date(
                               item.published_at
                             ).toLocaleDateString(
-                              "en-US",
+                              language ===
+                                "id"
+                                ? "id-ID"
+                                : language ===
+                                    "de"
+                                  ? "de-DE"
+                                  : language ===
+                                      "es"
+                                    ? "es-ES"
+                                    : language ===
+                                        "pt"
+                                      ? "pt-BR"
+                                      : "en-US",
                               {
                                 month:
                                   "short",
@@ -632,13 +817,18 @@ export default function OpportunityBrowser({
                                   "numeric",
                               }
                             )
-                          : "Recently"}
+                          : t(
+                              "recently"
+                            )}
                       </span>
 
                       <Link
                         href={`/opportunity/${item.id}`}
                       >
-                        View details →
+                        {t(
+                          "viewDetails"
+                        )}{" "}
+                        →
                       </Link>
                     </div>
                   </article>
@@ -652,19 +842,20 @@ export default function OpportunityBrowser({
               href="/opportunities"
               className="view-all-button"
             >
-              View all opportunities →
+              {t("viewAll")} →
             </Link>
           </div>
         </>
       ) : (
         <div className="container empty-state">
           <h3>
-            No opportunities found
+            {t(
+              "noOpportunities"
+            )}
           </h3>
 
           <p>
-            Try another category
-            or filter.
+            {t("tryAnother")}
           </p>
 
           <button
@@ -673,8 +864,7 @@ export default function OpportunityBrowser({
               resetFilters
             }
           >
-            Show all
-            opportunities
+            {t("showAll")}
           </button>
         </div>
       )}

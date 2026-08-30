@@ -61,6 +61,37 @@ const supabase = createClient(
    HELPERS
 ========================= */
 
+
+function isJunkJob(job) {
+  const title = String(
+    job.position || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const blockedTitles = new Set([
+    "across all departments",
+    "all departments",
+    "view all jobs",
+    "all jobs",
+    "jobs",
+    "remote jobs",
+  ]);
+
+  if (!title) {
+    return true;
+  }
+
+  if (blockedTitles.has(title)) {
+    return true;
+  }
+
+  if (title.length < 3) {
+    return true;
+  }
+
+  return false;
+}
 function cleanHtml(html) {
   if (!html) return null;
 
@@ -329,7 +360,8 @@ async function run() {
 
       if (
         !job.position ||
-        !sourceUrl
+        !sourceUrl ||
+        isJunkJob(job)
       ) {
         skipped++;
         continue;

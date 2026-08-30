@@ -1881,3 +1881,81 @@ footer p {
     height: 390px;
   }
 }
+
+.language-switcher {
+  min-width: 125px;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  outline: none;
+  background: white;
+  color: #444;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.language-switcher:hover {
+  border-color: #aaa;
+}
+
+.language-switcher:focus {
+  border-color: var(--accent);
+}
+
+@media (max-width: 650px) {
+  .language-switcher {
+    min-width: 65px;
+    max-width: 100px;
+  }
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+@media (max-width: 650px) {
+  .nav-right {
+    gap: 8px;
+  }
+
+  .nav-right nav {
+    display: none;
+  }
+}
+
+/* =========================
+   CURSOR FIX
+========================= */
+
+html,
+body,
+* {
+  cursor: default;
+}
+
+a,
+button,
+select,
+label,
+input[type="checkbox"],
+input[type="radio"],
+.clickable {
+  cursor: pointer;
+}
+
+.manual-carousel {
+  cursor: grab;
+}
+
+.manual-carousel.is-dragging {
+  cursor: grabbing;
+}
+
+input[type="text"],
+input[type="search"],
+textarea {
+  cursor: text;
+}

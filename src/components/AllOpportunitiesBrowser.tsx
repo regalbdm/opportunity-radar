@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
+
+import {
+  Language,
+  useLanguage,
+} from "@/components/LanguageProvider";
 
 type Opportunity = {
   id: string;
@@ -15,8 +23,14 @@ type Opportunity = {
   compensation: string | null;
   tags: string[] | null;
   xeveza_score: number | null;
-  why_it_matters: string | null;
   published_at: string | null;
+
+  why_it_matters?: string | null;
+  why_it_matters_en?: string | null;
+  why_it_matters_id?: string | null;
+  why_it_matters_es?: string | null;
+  why_it_matters_pt?: string | null;
+  why_it_matters_de?: string | null;
 
   indonesia_eligible?: boolean | null;
   seniority?: string | null;
@@ -26,147 +40,247 @@ type Opportunity = {
 };
 
 const categories = [
-  "All",
-  "Remote Jobs",
-  "Freelance",
-  "AI Jobs",
-  "Internship",
-  "Competition",
-  "Grants",
+  {
+    value: "All",
+    key: "all",
+  },
+  {
+    value: "Remote Jobs",
+    key: "remoteJobs",
+  },
+  {
+    value: "Freelance",
+    key: "freelance",
+  },
+  {
+    value: "AI Jobs",
+    key: "aiJobs",
+  },
+  {
+    value: "Internship",
+    key: "internship",
+  },
+  {
+    value: "Competition",
+    key: "competition",
+  },
+  {
+    value: "Grants",
+    key: "grants",
+  },
 ];
 
 const PAGE_SIZE = 12;
+
+function getWhyItMatters(
+  item: Opportunity,
+  language: Language
+) {
+  const values = {
+    en: item.why_it_matters_en,
+    id:
+      item.why_it_matters_id ||
+      item.why_it_matters,
+    es: item.why_it_matters_es,
+    pt: item.why_it_matters_pt,
+    de: item.why_it_matters_de,
+  };
+
+  return (
+    values[language] ||
+    item.why_it_matters_en ||
+    item.why_it_matters_id ||
+    item.why_it_matters ||
+    ""
+  );
+}
+
+function getLocale(
+  language: Language
+) {
+  switch (language) {
+    case "id":
+      return "id-ID";
+
+    case "es":
+      return "es-ES";
+
+    case "pt":
+      return "pt-BR";
+
+    case "de":
+      return "de-DE";
+
+    default:
+      return "en-US";
+  }
+}
 
 export default function AllOpportunitiesBrowser({
   opportunities,
 }: {
   opportunities: Opportunity[];
 }) {
-  const [activeCategory, setActiveCategory] =
-    useState("All");
+  const {
+    language,
+    t,
+  } = useLanguage();
+
+  const [
+    activeCategory,
+    setActiveCategory,
+  ] = useState("All");
 
   const [search, setSearch] =
     useState("");
 
   const [sort, setSort] =
-    useState<"newest" | "score">(
-      "newest"
-    );
+    useState<
+      "newest" | "score"
+    >("newest");
 
-  const [remoteOnly, setRemoteOnly] =
-    useState(false);
+  const [
+    remoteOnly,
+    setRemoteOnly,
+  ] = useState(false);
 
   const [
     indonesiaOnly,
     setIndonesiaOnly,
   ] = useState(false);
 
-  const [page, setPage] = useState(1);
+  const [page, setPage] =
+    useState(1);
 
-  const filteredItems = useMemo(() => {
-    let result = [...opportunities];
+  const filteredItems =
+    useMemo(() => {
+      let result = [
+        ...opportunities,
+      ];
 
-    if (activeCategory !== "All") {
-      result = result.filter(
-        (item) =>
-          item.category ===
-          activeCategory
-      );
-    }
-
-    if (remoteOnly) {
-      result = result.filter(
-        (item) =>
-          item.work_mode === "Remote" ||
-          item.remote === true
-      );
-    }
-
-    if (indonesiaOnly) {
-      result = result.filter(
-        (item) =>
-          item.indonesia_eligible ===
-          true
-      );
-    }
-
-    const keyword =
-      search.trim().toLowerCase();
-
-    if (keyword) {
-      result = result.filter(
-        (item) => {
-          const haystack = [
-            item.title,
-            item.company,
-            item.location,
-            item.category,
-            item.compensation,
-            item.seniority,
-            item.work_mode,
-            item.entry_barrier,
-            ...(item.tags ?? []),
-          ]
-            .filter(Boolean)
-            .join(" ")
-            .toLowerCase();
-
-          return haystack.includes(
-            keyword
+      if (
+        activeCategory !==
+        "All"
+      ) {
+        result =
+          result.filter(
+            (item) =>
+              item.category ===
+              activeCategory
           );
-        }
-      );
-    }
+      }
 
-    if (sort === "score") {
-      result.sort(
-        (a, b) =>
-          (b.xeveza_score ?? 0) -
-          (a.xeveza_score ?? 0)
-      );
-    } else {
-      result.sort((a, b) => {
-        const aDate = a.published_at
-          ? new Date(
+      if (remoteOnly) {
+        result =
+          result.filter(
+            (item) =>
+              item.work_mode ===
+                "Remote" ||
+              item.remote === true
+          );
+      }
+
+      if (indonesiaOnly) {
+        result =
+          result.filter(
+            (item) =>
+              item.indonesia_eligible ===
+              true
+          );
+      }
+
+      const keyword =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (keyword) {
+        result =
+          result.filter(
+            (item) => {
+              const haystack = [
+                item.title,
+                item.company,
+                item.location,
+                item.category,
+                item.compensation,
+                item.seniority,
+                item.work_mode,
+                item.entry_barrier,
+                ...(item.tags ??
+                  []),
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+
+              return haystack.includes(
+                keyword
+              );
+            }
+          );
+      }
+
+      if (sort === "score") {
+        result.sort(
+          (a, b) =>
+            (b.xeveza_score ??
+              0) -
+            (a.xeveza_score ??
+              0)
+        );
+      } else {
+        result.sort(
+          (a, b) => {
+            const aDate =
               a.published_at
-            ).getTime()
-          : 0;
+                ? new Date(
+                    a.published_at
+                  ).getTime()
+                : 0;
 
-        const bDate = b.published_at
-          ? new Date(
+            const bDate =
               b.published_at
-            ).getTime()
-          : 0;
+                ? new Date(
+                    b.published_at
+                  ).getTime()
+                : 0;
 
-        return bDate - aDate;
-      });
-    }
+            return (
+              bDate - aDate
+            );
+          }
+        );
+      }
 
-    return result;
-  }, [
-    opportunities,
-    activeCategory,
-    search,
-    sort,
-    remoteOnly,
-    indonesiaOnly,
-  ]);
+      return result;
+    }, [
+      opportunities,
+      activeCategory,
+      search,
+      sort,
+      remoteOnly,
+      indonesiaOnly,
+    ]);
 
-  const totalPages = Math.max(
-    1,
-    Math.ceil(
-      filteredItems.length /
-        PAGE_SIZE
-    )
-  );
+  const totalPages =
+    Math.max(
+      1,
+      Math.ceil(
+        filteredItems.length /
+          PAGE_SIZE
+      )
+    );
 
-  const safePage = Math.min(
-    page,
-    totalPages
-  );
+  const safePage =
+    Math.min(
+      page,
+      totalPages
+    );
 
   const start =
-    (safePage - 1) * PAGE_SIZE;
+    (safePage - 1) *
+    PAGE_SIZE;
 
   const visibleItems =
     filteredItems.slice(
@@ -174,14 +288,14 @@ export default function AllOpportunitiesBrowser({
       start + PAGE_SIZE
     );
 
-  const resetFilters = () => {
+  function resetFilters() {
     setActiveCategory("All");
     setSearch("");
     setSort("newest");
     setRemoteOnly(false);
     setIndonesiaOnly(false);
     setPage(1);
-  };
+  }
 
   function goToPage(
     nextPage: number
@@ -203,13 +317,16 @@ export default function AllOpportunitiesBrowser({
           <input
             type="text"
             value={search}
+            placeholder={t(
+              "searchPlaceholder"
+            )}
             onChange={(e) => {
               setSearch(
                 e.target.value
               );
+
               setPage(1);
             }}
-            placeholder="Search title, company, location, skill..."
           />
 
           {search && (
@@ -221,7 +338,7 @@ export default function AllOpportunitiesBrowser({
                 setPage(1);
               }}
             >
-              Clear
+              ×
             </button>
           )}
         </div>
@@ -231,19 +348,25 @@ export default function AllOpportunitiesBrowser({
           value={sort}
           onChange={(e) => {
             setSort(
-              e.target.value as
+              e.target
+                .value as
                 | "newest"
                 | "score"
             );
+
             setPage(1);
           }}
         >
           <option value="newest">
-            Newest first
+            {t(
+              "newestFirst"
+            )}
           </option>
 
           <option value="score">
-            Highest score
+            {t(
+              "highestScore"
+            )}
           </option>
         </select>
       </div>
@@ -252,22 +375,27 @@ export default function AllOpportunitiesBrowser({
         {categories.map(
           (category) => (
             <button
-              key={category}
+              key={
+                category.value
+              }
               type="button"
               onClick={() => {
                 setActiveCategory(
-                  category
+                  category.value
                 );
+
                 setPage(1);
               }}
               className={
                 activeCategory ===
-                  category
+                category.value
                   ? "category active"
                   : "category"
               }
             >
-              {category}
+              {t(
+                category.key
+              )}
             </button>
           )
         )}
@@ -277,40 +405,52 @@ export default function AllOpportunitiesBrowser({
         <label>
           <input
             type="checkbox"
-            checked={remoteOnly}
+            checked={
+              remoteOnly
+            }
             onChange={(e) => {
               setRemoteOnly(
                 e.target.checked
               );
+
               setPage(1);
             }}
           />
 
-          Remote only
+          {t("remoteOnly")}
         </label>
 
         <label>
           <input
             type="checkbox"
-            checked={indonesiaOnly}
+            checked={
+              indonesiaOnly
+            }
             onChange={(e) => {
               setIndonesiaOnly(
                 e.target.checked
               );
+
               setPage(1);
             }}
           />
 
-          Indonesia eligible
+          {t(
+            "indonesiaEligible"
+          )}
         </label>
       </div>
 
       <div className="all-results-head">
         <div>
           <strong>
-            {filteredItems.length}
+            {
+              filteredItems.length
+            }
           </strong>{" "}
-          opportunities found
+          {t(
+            "opportunitiesFound"
+          )}
         </div>
 
         <button
@@ -320,154 +460,197 @@ export default function AllOpportunitiesBrowser({
             resetFilters
           }
         >
-          Reset filters
+          {t(
+            "resetFilters"
+          )}
         </button>
       </div>
 
-      {visibleItems.length > 0 ? (
+      {visibleItems.length >
+      0 ? (
         <>
           <div className="all-opportunity-grid">
             {visibleItems.map(
-              (item) => (
-                <article
-                  className="opportunity-card all-opportunity-card"
-                  key={item.id}
-                >
-                  <div className="card-top">
-                    <div className="company-logo">
-                      {(
-                        item.company ||
-                        "X"
-                      )
-                        .charAt(0)
-                        .toUpperCase()}
-                    </div>
+              (item) => {
+                const why =
+                  getWhyItMatters(
+                    item,
+                    language
+                  );
 
-                    <div className="score">
-                      <span>
-                        XEVEZA SCORE
-                      </span>
+                return (
+                  <article
+                    className="opportunity-card all-opportunity-card"
+                    key={item.id}
+                  >
+                    <div className="card-top">
+                      <div className="company-logo">
+                        {(
+                          item.company ||
+                          "X"
+                        )
+                          .charAt(0)
+                          .toUpperCase()}
+                      </div>
 
-                      <strong>
-                        {item.xeveza_score ??
-                          "--"}
-                      </strong>
-
-                      <small>
-                        /100
-                      </small>
-                    </div>
-                  </div>
-
-                  <div className="card-content">
-                    <p className="company">
-                      {item.company ||
-                        "Company not specified"}
-                    </p>
-
-                    <h3>
-                      {item.title}
-                    </h3>
-
-                    <div className="meta">
-                      <span>
-                        🌎{" "}
-                        {item.location ||
-                          "Not specified"}
-                      </span>
-
-                      <span>
-                        ◷{" "}
-                        {item.work_mode ||
-                          item.category ||
-                          "Opportunity"}
-                      </span>
-
-                      <span>
-                        💰{" "}
-                        {item.compensation ||
-                          "Not disclosed"}
-                      </span>
-                    </div>
-
-                    <div className="card-flags">
-                      {item.seniority && (
+                      <div className="score">
                         <span>
-                          {
-                            item.seniority
-                          }
+                          XEVEZA SCORE
                         </span>
-                      )}
 
-                      {item.entry_barrier && (
-                        <span>
-                          Barrier:{" "}
-                          {
-                            item.entry_barrier
-                          }
-                        </span>
-                      )}
+                        <strong>
+                          {item.xeveza_score ??
+                            "--"}
+                        </strong>
 
-                      {item.indonesia_eligible ===
-                        true && (
-                        <span>
-                          Indonesia ✓
-                        </span>
-                      )}
+                        <small>
+                          /100
+                        </small>
+                      </div>
                     </div>
 
-                    <div className="tags">
-                      {(item.tags ?? [])
-                        .slice(0, 4)
-                        .map(
-                          (tag) => (
-                            <span
-                              key={`${item.id}-${tag}`}
-                            >
-                              {tag}
-                            </span>
-                          )
-                        )}
-                    </div>
-
-                    <div className="why">
-                      <span>
-                        ✦ Why it
-                        matters
-                      </span>
-
-                      <p>
-                        {item.why_it_matters ||
-                          "Worth checking based on Xeveza analysis."}
+                    <div className="card-content">
+                      <p className="company">
+                        {item.company ||
+                          t(
+                            "notSpecified"
+                          )}
                       </p>
-                    </div>
-                  </div>
 
-                  <div className="card-footer">
-                    <span>
-                      {item.published_at
-                        ? new Date(
-                            item.published_at
-                          ).toLocaleDateString(
-                            "en-US",
+                      <h3>
+                        {item.title}
+                      </h3>
+
+                      <div className="meta">
+                        <span>
+                          🌎{" "}
+                          {item.location ||
+                            t(
+                              "notSpecified"
+                            )}
+                        </span>
+
+                        <span>
+                          ◷{" "}
+                          {item.work_mode ||
+                            item.category ||
+                            t(
+                              "notSpecified"
+                            )}
+                        </span>
+
+                        <span>
+                          💰{" "}
+                          {item.compensation ||
+                            t(
+                              "notDisclosed"
+                            )}
+                        </span>
+                      </div>
+
+                      <div className="card-flags">
+                        {item.seniority && (
+                          <span>
                             {
-                              month:
-                                "short",
-                              day:
-                                "numeric",
+                              item.seniority
                             }
-                          )
-                        : "Recently"}
-                    </span>
+                          </span>
+                        )}
 
-                    <Link
-                      href={`/opportunity/${item.id}`}
-                    >
-                      View details →
-                    </Link>
-                  </div>
-                </article>
-              )
+                        {item.entry_barrier && (
+                          <span>
+                            {t(
+                              "barrier"
+                            )}
+                            :{" "}
+                            {
+                              item.entry_barrier
+                            }
+                          </span>
+                        )}
+
+                        {item.indonesia_eligible ===
+                          true && (
+                          <span>
+                            {t(
+                              "indonesiaAllowed"
+                            )}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="tags">
+                        {(item.tags ??
+                          [])
+                          .slice(
+                            0,
+                            4
+                          )
+                          .map(
+                            (
+                              tag
+                            ) => (
+                              <span
+                                key={`${item.id}-${tag}`}
+                              >
+                                {
+                                  tag
+                                }
+                              </span>
+                            )
+                          )}
+                      </div>
+
+                      <div className="why">
+                        <span>
+                          ✦{" "}
+                          {t(
+                            "whyItMatters"
+                          )}
+                        </span>
+
+                        <p>
+                          {why ||
+                            t(
+                              "notSpecified"
+                            )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="card-footer">
+                      <span>
+                        {item.published_at
+                          ? new Date(
+                              item.published_at
+                            ).toLocaleDateString(
+                              getLocale(
+                                language
+                              ),
+                              {
+                                month:
+                                  "short",
+                                day:
+                                  "numeric",
+                              }
+                            )
+                          : t(
+                              "recently"
+                            )}
+                      </span>
+
+                      <Link
+                        href={`/opportunity/${item.id}`}
+                      >
+                        {t(
+                          "viewDetails"
+                        )}{" "}
+                        →
+                      </Link>
+                    </div>
+                  </article>
+                );
+              }
             )}
           </div>
 
@@ -483,7 +666,7 @@ export default function AllOpportunitiesBrowser({
                 )
               }
             >
-              ← Previous
+              ← {t("previous")}
             </button>
 
             <div className="pagination-pages">
@@ -496,8 +679,11 @@ export default function AllOpportunitiesBrowser({
                   index + 1
               )
                 .filter(
-                  (pageNumber) =>
-                    pageNumber === 1 ||
+                  (
+                    pageNumber
+                  ) =>
+                    pageNumber ===
+                      1 ||
                     pageNumber ===
                       totalPages ||
                     Math.abs(
@@ -567,19 +753,20 @@ export default function AllOpportunitiesBrowser({
                 )
               }
             >
-              Next →
+              {t("next")} →
             </button>
           </div>
         </>
       ) : (
         <div className="empty-state">
           <h3>
-            No opportunities found
+            {t(
+              "noOpportunities"
+            )}
           </h3>
 
           <p>
-            Try another category,
-            search term, or filter.
+            {t("tryAnother")}
           </p>
 
           <button
@@ -588,8 +775,7 @@ export default function AllOpportunitiesBrowser({
               resetFilters
             }
           >
-            Show all
-            opportunities
+            {t("showAll")}
           </button>
         </div>
       )}

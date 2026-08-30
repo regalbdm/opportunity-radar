@@ -116,6 +116,45 @@ function toIsoDate(value) {
   return date.toISOString();
 }
 
+
+function normalizeRawSeniority(value) {
+  const values = Array.isArray(value)
+    ? value
+    : value
+      ? [value]
+      : [];
+
+  const normalized = values
+    .map((item) => String(item).trim().toLowerCase())
+    .map((item) => {
+      if (item.includes("intern")) return "Intern";
+      if (item.includes("entry")) return "Entry";
+      if (item.includes("junior")) return "Junior";
+      if (item.includes("mid")) return "Mid";
+      if (item.includes("senior")) return "Senior";
+      if (item.includes("lead")) return "Lead";
+      if (item.includes("manager")) return "Manager";
+      if (item.includes("director")) return "Director";
+      if (
+        item.includes("executive") ||
+        item.includes("vp") ||
+        item.includes("chief")
+      ) {
+        return "Executive";
+      }
+
+      return null;
+    })
+    .filter(Boolean);
+
+  const unique = [...new Set(normalized)];
+
+  if (unique.length === 0) {
+    return null;
+  }
+
+  return unique.join(" / ");
+}
 function formatSalary(job) {
   if (
     job.minSalary == null &&
@@ -412,7 +451,7 @@ async function run() {
           indonesiaEligible,
 
         seniority:
-          job.seniority || null,
+          normalizeRawSeniority(job.seniority),
 
         work_mode: "Remote",
 
