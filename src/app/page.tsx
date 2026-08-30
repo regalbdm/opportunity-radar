@@ -1,69 +1,358 @@
-import Image from "next/image";
+import { supabase } from "@/lib/supabase";
+import OpportunityBrowser from "@/components/OpportunityBrowser";
 
-export default function Home() {
+export default async function Home() {
+  const { data: opportunities, error } = await supabase
+    .from("opportunities")
+    .select("*")
+    .eq("status", "active")
+    .order("published_at", {
+      ascending: false,
+    });
+
+  if (error) {
+    console.error(
+      "Supabase error:",
+      error
+    );
+  }
+
+  const items = opportunities ?? [];
+
+  const latestTickerItems = items.slice(0, 30);
+  const tickerItems = [
+    ...latestTickerItems,
+    ...latestTickerItems,
+  ];
+
+  const today = new Date();
+
+  const addedToday = items.filter((item) => {
+    if (!item.discovered_at) {
+      return false;
+    }
+
+    const discovered = new Date(
+      item.discovered_at
+    );
+
+    return (
+      discovered.getFullYear() ===
+        today.getFullYear() &&
+      discovered.getMonth() ===
+        today.getMonth() &&
+      discovered.getDate() ===
+        today.getDate()
+    );
+  }).length;
+
+  const sourcesScanned = new Set(
+    items
+      .map((item) => item.source)
+      .filter(Boolean)
+  ).size;
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main>
+      <header className="navbar">
+        <div className="container nav-inner">
+          <div className="brand">
+            Xeveza<span>.</span>
+          </div>
+
+          <nav>
+            <a href="#opportunities">
+              Opportunities
+            </a>
+
+            <a href="#how-it-works">
+              How it works
+            </a>
+
+            <a href="#about">
+              About
+            </a>
+          </nav>
+        </div>
+      </header>
+
+      <section className="hero">
+        <div className="container">
+          <div className="hero-grid">
+            <div>
+              <div className="eyebrow">
+                OPPORTUNITY RADAR
+              </div>
+
+              <h1>
+                Find opportunities
+                <br />
+                before everyone else.
+              </h1>
+
+              <p className="hero-text">
+                Remote jobs, freelance gigs,
+                internships, grants,
+                competitions, and digital
+                opportunities — discovered,
+                filtered, and summarized
+                automatically.
+              </p>
+
+              <a
+                href="#opportunities"
+                className="hero-search-link"
+              >
+                <div className="search-box">
+                  <span>⌕</span>
+
+                  <div className="hero-search-placeholder">
+                    Search jobs, skills,
+                    companies, or
+                    opportunities...
+                  </div>
+
+                  <button type="button">
+                    Search
+                  </button>
+                </div>
+              </a>
+
+              <div className="stats">
+                <div>
+                  <strong>
+                    {items.length}
+                  </strong>
+
+                  <span>
+                    Active opportunities
+                  </span>
+                </div>
+
+                <div>
+                  <strong>
+                    {addedToday}
+                  </strong>
+
+                  <span>
+                    Added today
+                  </span>
+                </div>
+
+                <div>
+                  <strong>
+                    {sourcesScanned}
+                  </strong>
+
+                  <span>
+                    Sources scanned
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="radar-panel">
+              <div className="radar-head">
+                <span className="live-dot"></span>
+                LIVE OPPORTUNITY RADAR
+              </div>
+
+              <div className="scan-line"></div>
+
+              {items.length > 0 ? (
+                items
+                  .slice(0, 3)
+                  .map((item) => (
+                    <div
+                      className="radar-item"
+                      key={item.id}
+                    >
+                      <div>
+                        <p>
+                          {item.title}
+                        </p>
+
+                        <span>
+                          {item.location ||
+                            "Location not specified"}{" "}
+                          ·{" "}
+                          {item.compensation ||
+                            item.category ||
+                            "Opportunity"}
+                        </span>
+                      </div>
+
+                      <strong>
+                        {item.xeveza_score ??
+                          "--"}
+                      </strong>
+                    </div>
+                  ))
+              ) : (
+                <div className="radar-item">
+                  <div>
+                    <p>
+                      No opportunities yet
+                    </p>
+
+                    <span>
+                      Waiting for new
+                      opportunities...
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              <div className="analysis-box">
+                <span>
+                  AI ANALYSIS
+                </span>
+
+                <p>
+                  Scanning opportunity
+                  requirements...
+                </p>
+
+                <div className="analysis-row">
+                  <span>
+                    Remote eligibility
+                  </span>
+
+                  <strong>✓</strong>
+                </div>
+
+                <div className="analysis-row">
+                  <span>
+                    Compensation
+                  </span>
+
+                  <strong>✓</strong>
+                </div>
+
+                <div className="analysis-row">
+                  <span>
+                    Entry barrier
+                  </span>
+
+                  <strong>✓</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {tickerItems.length > 0 && (
+        <section className="live-strip">
+          <div className="ticker">
+            <div className="ticker-track">
+              {tickerItems.map(
+                (item, index) => (
+                  <span
+                    key={`${item.id}-ticker-${index}`}
+                  >
+                    {item.title} ·{" "}
+                    {item.xeveza_score ??
+                      "--"}
+                    /100
+                  </span>
+                )
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <section
+        className="opportunity-section"
+        id="opportunities"
+      >
+        <OpportunityBrowser
+          opportunities={items}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+      </section>
+
+      <section
+        className="how-it-works"
+        id="how-it-works"
+      >
+        <div className="container">
+          <p className="section-label">
+            HOW IT WORKS
+          </p>
+
+          <h2>
+            Less searching. Better
+            opportunities.
+          </h2>
+
+          <div className="pipeline">
+            <div className="pipeline-line">
+              <span className="pipeline-dot"></span>
+            </div>
+
+            <div className="steps">
+              <div>
+                <span>01</span>
+
+                <h3>Discover</h3>
+
+                <p>
+                  Xeveza scans public
+                  sources across the internet
+                  for new opportunities.
+                </p>
+              </div>
+
+              <div>
+                <span>02</span>
+
+                <h3>Analyze</h3>
+
+                <p>
+                  AI filters duplicates,
+                  extracts requirements, and
+                  evaluates each opportunity.
+                </p>
+              </div>
+
+              <div>
+                <span>03</span>
+
+                <h3>Rank</h3>
+
+                <p>
+                  Every opportunity receives
+                  a score so valuable ones
+                  are easier to find.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer id="about">
+        <div className="container footer-inner">
+          <div>
+            <div className="brand">
+              Xeveza<span>.</span>
+            </div>
+
+            <p>
+              Discover what&apos;s worth
+              your time.
+            </p>
+          </div>
+
+          <p className="disclaimer">
+            Xeveza does not own or
+            represent listed opportunities.
+            Applications are completed on
+            the original source.
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+      </footer>
+    </main>
   );
 }
