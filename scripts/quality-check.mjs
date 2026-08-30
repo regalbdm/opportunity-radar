@@ -3,21 +3,26 @@ import fs from "fs";
 import path from "path";
 
 const envPath = path.resolve(".env.local");
-const envContent = fs.readFileSync(envPath, "utf8");
 
-for (const line of envContent.split(/\r?\n/)) {
-  const trimmed = line.trim();
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf8");
 
-  if (!trimmed || trimmed.startsWith("#")) continue;
+  for (const line of envContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
 
-  const separatorIndex = trimmed.indexOf("=");
+    if (!trimmed || trimmed.startsWith("#")) continue;
 
-  if (separatorIndex === -1) continue;
+    const separatorIndex = trimmed.indexOf("=");
 
-  const key = trimmed.slice(0, separatorIndex).trim();
-  const value = trimmed.slice(separatorIndex + 1).trim();
+    if (separatorIndex === -1) continue;
 
-  process.env[key] = value;
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
+
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
 }
 
 const supabaseUrl =

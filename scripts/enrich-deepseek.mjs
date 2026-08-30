@@ -4,21 +4,25 @@ import path from "path";
 
 const envPath = path.resolve(".env.local");
 
-const envContent = fs.readFileSync(envPath, "utf8");
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, "utf8");
 
-for (const line of envContent.split(/\r?\n/)) {
-  const trimmed = line.trim();
+  for (const line of envContent.split(/\r?\n/)) {
+    const trimmed = line.trim();
 
-  if (!trimmed || trimmed.startsWith("#")) continue;
+    if (!trimmed || trimmed.startsWith("#")) continue;
 
-  const separatorIndex = trimmed.indexOf("=");
+    const separatorIndex = trimmed.indexOf("=");
 
-  if (separatorIndex === -1) continue;
+    if (separatorIndex === -1) continue;
 
-  const key = trimmed.slice(0, separatorIndex).trim();
-  const value = trimmed.slice(separatorIndex + 1).trim();
+    const key = trimmed.slice(0, separatorIndex).trim();
+    const value = trimmed.slice(separatorIndex + 1).trim();
 
-  process.env[key] = value;
+    if (!process.env[key]) {
+      process.env[key] = value;
+    }
+  }
 }
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
