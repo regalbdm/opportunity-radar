@@ -36,21 +36,39 @@ async function run() {
   console.log("==========================");
   console.log("");
 
-  console.log(
-    "STEP 1: Collecting opportunities..."
-  );
-
+  console.log("STEP 1: Arbeitnow...");
   await runScript(
     "./scripts/collect-arbeitnow.mjs"
   );
 
   console.log("");
-  console.log(
-    "STEP 2: AI enrichment..."
+  console.log("STEP 2: Remotive...");
+  await runScript(
+    "./scripts/collect-remotive.mjs"
   );
 
+  console.log("");
+  console.log("STEP 3: Himalayas...");
+  await runScript(
+    "./scripts/collect-himalayas.mjs"
+  );
+
+  console.log("");
+  console.log("STEP 4: Remote OK...");
+  await runScript(
+    "./scripts/collect-remoteok.mjs"
+  );
+
+  console.log("");
+  console.log("STEP 5: DeepSeek enrichment...");
   await runScript(
     "./scripts/enrich-deepseek.mjs"
+  );
+
+  console.log("");
+  console.log("STEP 6: Quality check...");
+  await runScript(
+    "./scripts/quality-check.mjs"
   );
 
   console.log("");
